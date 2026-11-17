@@ -1,0 +1,45 @@
+# Clipper
+
+An iMessage app: paste a link from Instagram / TikTok / X / Reddit / Facebook / Streamable (or any page with an mp4) and the video gets dropped into the message field, ready to send. Everything runs on-device — no backend.
+
+## Layout
+
+- `Packages/ClipperKit/` — Swift package, where nearly all the logic lives.
+  - `Sources/ClipperKit/` — `Clipper` (entry point: link → downloaded `Clip`), `HTTP` (per-clip ephemeral session), `Muxer` (DASH video+audio → mp4), `Extractors/` (one file per service).
+  - `Sources/ClipperUI/` — `ClipperModel` + `ClipperView`, shared by the app and the extension (iOS-only, wrapped in `#if canImport(UIKit)`).
+  - `Sources/clipper-cli/` — macOS debug harness that runs the exact same code path.
+- `ClipperMessages/` — the iMessage extension (`MessagesViewController`).
+- `Clipper/` — container app (same UI + preview/share sheet).
+- `project.yml` — XcodeGen spec. **`Clipper.xcodeproj` is generated and gitignored**; run `xcodegen` after changing `project.yml` or adding files.
+
+## Commands
+
+```sh
+# unit tests (fast, offline)
+swift test --package-path Packages/ClipperKit
+
+# live canaries against real services — run this first when "it stopped working"
+CLIPPER_LIVE=1 swift test --package-path Packages/ClipperKit --filter LiveTests
+
+# try any link end-to-end; writes the mp4 to the cwd (run it from a tmp/ dir)
+swift run --package-path Packages/ClipperKit clipper-cli <url> [<url>…]
+
+# app build
+xcodegen && xcodebuild -project Clipper.xcodeproj -scheme Clipper -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath build build
+```
+
+## Working on extractors
+
+- Services break their unauthenticated endpoints regularly. yt-dlp is the reference implementation — when something breaks, diff our approach against `yt_dlp/extractor/<service>.py` upstream (each extractor's header comment says what it mirrors).
+- Validate with **URLSession**, not curl: Instagram's GraphQL rejects curl's TLS fingerprint but accepts Apple's stack (which is what ships on-device).
+- Walk JSON loosely with `JSON.at(...)` rather than Codable models — payload shapes drift.
+- New service = new `Extractor` in `Extractors/`, register it in `Clipper.extractors` (before `Generic`), add a routing case + parsing test, and a sample URL in `LiveTests.samples`.
+- Known-hard, not supported yet: YouTube (signature/PO tokens), Bluesky & Vimeo (HLS-only; would need segment download + remux), Threads.
+
+## Gotchas
+
+- Messages extensions have a tight memory cap (~120 MB): always stream downloads to disk (`HTTP.download`), never into `Data`.
+- Compact presentation can't show a keyboard — the compact UI is a `PasteButton`; the keyboard button requests `.expanded`.
+- `Clipper.purge()` only removes clips older than an hour because Messages may still reference a just-inserted attachment.
+- Xcode needs the iOS platform matching its SDK installed (`xcodebuild -downloadPlatform iOS`), or no destinations show up.
+- Device builds need `DEVELOPMENT_TEAM` set in `project.yml`.

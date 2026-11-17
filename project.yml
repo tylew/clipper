@@ -1,0 +1,63 @@
+# Source of truth for the Xcode project. Regenerate with `xcodegen` after editing;
+# Clipper.xcodeproj is not checked in.
+name: Clipper
+options:
+  bundleIdPrefix: com.tylerlewis
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: "" # set your team id to run on a device
+    TARGETED_DEVICE_FAMILY: "1,2"
+
+packages:
+  ClipperKit:
+    path: Packages/ClipperKit
+
+targets:
+  Clipper:
+    type: application
+    platform: iOS
+    sources: [Clipper]
+    dependencies:
+      - package: ClipperKit
+        product: ClipperUI
+      - package: ClipperKit
+        product: ClipperKit
+      - target: ClipperMessages
+    info:
+      path: Clipper/Info.plist
+      properties:
+        CFBundleDisplayName: Clipper
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tylerlewis.clipper
+
+  ClipperMessages:
+    type: app-extension.messages
+    platform: iOS
+    sources: [ClipperMessages]
+    dependencies:
+      - package: ClipperKit
+        product: ClipperUI
+      - package: ClipperKit
+        product: ClipperKit
+    info:
+      path: ClipperMessages/Info.plist
+      properties:
+        CFBundleDisplayName: Clipper
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.message-payload-provider
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).MessagesViewController
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tylerlewis.clipper.messages
