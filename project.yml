@@ -13,7 +13,8 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
-    DEVELOPMENT_TEAM: "" # set your team id to run on a device
+    DEVELOPMENT_TEAM: 3Y83SG2Z5F
+    BUNDLE_ID_SUFFIX: "" # Personal Team builds pass BUNDLE_ID_SUFFIX=.dev
     TARGETED_DEVICE_FAMILY: "1,2"
 
 packages:
@@ -40,7 +41,7 @@ targets:
           UIApplicationSupportsMultipleScenes: false
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.tylerlewis.clipper
+        PRODUCT_BUNDLE_IDENTIFIER: com.tylerlewis.clipper$(BUNDLE_ID_SUFFIX)
 
   ClipperMessages:
     type: app-extension.messages
@@ -60,4 +61,4 @@ targets:
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).MessagesViewController
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.tylerlewis.clipper.messages
+        PRODUCT_BUNDLE_IDENTIFIER: com.tylerlewis.clipper$(BUNDLE_ID_SUFFIX).messages

@@ -1,7 +1,6 @@
 #if canImport(UIKit)
 import ClipperKit
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// Paste-a-link UI shared by the app and the iMessage extension.
 /// `compact` hides the text field (the Messages drawer can't show a keyboard in compact mode);
@@ -49,19 +48,36 @@ public struct ClipperView<ReadyContent: View>: View {
                     .autocorrectionDisabled()
                     .submitLabel(.go)
                     .onSubmit { model.submit() }
+                    .onChange(of: model.text) { old, new in
+                        // A paste (vs. typing) lands many characters at once; start right away.
+                        if new.count - old.count > 8, Clipper.firstURL(in: new) != nil { model.submit() }
+                    }
                 pasteButton.labelStyle(.iconOnly)
             }
         }
         .disabled(model.isWorking)
     }
 
+    /// A plain button that reads `UIPasteboard` (iOS shows its "Allow Paste" prompt).
+    /// SwiftUI's `PasteButton` stays disabled inside the Messages extension, so it isn't used.
     private var pasteButton: some View {
-        PasteButton(supportedContentTypes: [.url, .plainText]) { providers in
-            Task {
-                if let text = await Self.loadText(from: providers) { model.submit(text) }
-            }
+        Button(action: pasteFromClipboard) {
+            Label("Paste link", systemImage: "doc.on.clipboard")
         }
+        .buttonStyle(.borderedProminent)
         .buttonBorderShape(.capsule)
+    }
+
+    private func pasteFromClipboard() {
+        let pasteboard = UIPasteboard.general
+        // `has…` checks don't trigger the paste prompt; only one actual read happens below.
+        if pasteboard.hasURLs, let url = pasteboard.url {
+            model.submit(url.absoluteString)
+        } else if pasteboard.hasStrings, let text = pasteboard.string, Clipper.firstURL(in: text) != nil {
+            model.submit(text)
+        } else {
+            model.fail("Copy a video link first, then tap Paste link.")
+        }
     }
 
     @ViewBuilder private var status: some View {
@@ -89,28 +105,6 @@ public struct ClipperView<ReadyContent: View>: View {
                     .foregroundStyle(.red)
                 Button("Try again") { model.submit() }.font(.callout)
             }
-        }
-    }
-
-    /// Share sheets put either a URL or plain text on the pasteboard; accept both.
-    private static func loadText(from providers: [NSItemProvider]) async -> String? {
-        for provider in providers {
-            if provider.canLoadObject(ofClass: URL.self),
-               let url: URL = await load(URL.self, from: provider) {
-                return url.absoluteString
-            }
-            if provider.canLoadObject(ofClass: String.self),
-               let text: String = await load(String.self, from: provider) {
-                return text
-            }
-        }
-        return nil
-    }
-
-    private static func load<T: _ObjectiveCBridgeable>(_ type: T.Type, from provider: NSItemProvider) async -> T?
-    where T._ObjectiveCType: NSItemProviderReading {
-        await withCheckedContinuation { continuation in
-            _ = provider.loadObject(ofClass: type) { value, _ in continuation.resume(returning: value) }
         }
     }
 }

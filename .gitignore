@@ -12,3 +12,6 @@ Packages/ClipperKit/.swiftpm/
 *.mp4
 .DS_Store
 xcuserdata/
+
+# shortcut build intermediates
+*.unsigned.shortcut
